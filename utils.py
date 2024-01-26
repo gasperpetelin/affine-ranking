@@ -14,6 +14,7 @@ from pathlib import Path
 from joblib import Parallel, delayed
 import pandas as pd
 import glob
+import os
 import matplotlib.pyplot as plt
 
 def try_load_file(file):
@@ -23,23 +24,31 @@ def try_load_file(file):
         print(e)
 
 def load_runs():
-    files = glob.glob('runs/*.csv')
+    files = list(glob.glob('runs/*.csv'))
+    parquet_file = f'runs/data_{len(files)}.parquet'
+    if os.path.exists(parquet_file):
+        return pd.read_parquet(parquet_file)
     dfs = Parallel(n_jobs=-1)(delayed(try_load_file)(file=file) for file in files)
     df = pd.concat(dfs)
+    df.to_parquet(parquet_file)
     return df
 
 def load_ela():
     files = glob.glob('ela/*.csv')
+    parquet_file = f'ela/data_{len(files)}.parquet'
+    if os.path.exists(parquet_file):
+        return pd.read_parquet(parquet_file)
     dfs = Parallel(n_jobs=-1)(delayed(try_load_file)(file=file) for file in files)
     ela = pd.concat(dfs)
+    ela.to_parquet(parquet_file)
     return ela
 
 def get_rank(df, algorithms):
     d = df.copy()
-    rdf = df[algorithms].rank(axis=1)
+    rdf = df[algorithms].rank(axis=1).copy()
     for column in df.columns.difference(algorithms):
-        rdf[column]=df[column]
-    return rdf
+        rdf[column]=df[column].copy()
+    return rdf.copy()
 
 def log_performances(df, algorithms):
     ndf = df.copy()

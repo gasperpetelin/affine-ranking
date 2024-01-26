@@ -6,6 +6,11 @@ import pandas as pd
 import os
 from pflacco.classical_ela_features import *
 
+def normalize_sample(X, y):
+    X, y = np.array(X), np.array(y)
+    return (X-X.min(axis=0))/(X.max(axis=0)-X.min(axis=0)), (y-y.min())/(y.max()-y.min())
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="My script")
     parser.add_argument("--problem1", type=int, help="First problem")
@@ -59,29 +64,39 @@ if __name__ == "__main__":
                 calculate_limo, 
                 calculate_nbc, 
                 calculate_pca, 
-                
             ]
-            
+
+            #print('no scaled', X.min(), X.max(), y.min(), y.max(), mix.xl, mix.xu)
             for method in methods:
                 try:
                     fe = method(X, y)
                     features.update(fe)
                 except:
-                    pass
+                    print('try with bounds', method)
+                    try:
+                        fe = method(X, y, lower_bound=mix.xl, upper_bound=mix.xu)
+                        features.update(fe)
+                    except:
+                        print(method)
+            dfs.append(features)
             
-            #ela_meta = calculate_ela_meta(X, y)
-            #features.update(ela_meta)
-            #ela_distr = calculate_ela_distribution(X, y)
-            #features.update(ela_distr)
-            #ela_level = calculate_ela_level(X, y)
-            #features.update(ela_level)
-            #nbc = calculate_nbc(X, y)
-            #features.update(nbc)
-            #disp = calculate_dispersion(X, y)
-            #features.update(disp)
-            #ic = calculate_information_content(X, y)
-            #features.update(ic)
-            
+            sX, sy = normalize_sample(X, y)
+            lower_bound=len(mix.xl)*[sX.min()]
+            upper_bound=len(mix.xu)*[sX.max()]
+            #print('scaled', sX.min(), sX.max(), sy.min(), sy.max(), lower_bound, upper_bound)
+            for method in methods:
+                try:
+                    fe = method(sX, sy)
+                    fe = {'norm_' + k: v for k, v in fe.items()}
+                    features.update(fe)
+                except:
+                    print('try with bounds', method)
+                    try:
+                        fe = method(sX, sy, lower_bound=lower_bound, upper_bound=upper_bound)
+                        fe = {'norm_' + k: v for k, v in fe.items()}
+                        features.update(fe)
+                    except:
+                        print(method)
             dfs.append(features)
 
         dfs = pd.DataFrame(dfs)
